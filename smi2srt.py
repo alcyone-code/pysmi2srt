@@ -97,6 +97,7 @@ def convert(data, lang):  # written by ncianeo
                     else:
                         srt += '%02d:%02d:%02d,%03d' % ms_to_ts(
                             data[i]['start'])+' --> '+'%02d:%02d:%02d,%03d\n' % ms_to_ts(int(data[i]['start'])+1000)
+                data[i]['content'][lang] = re.sub('&nbsp;','',data[i]['content'][lang])
                 srt += data[i]['content'][lang]+'\n\n'
         except:
             continue
