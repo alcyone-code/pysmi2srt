@@ -4,6 +4,7 @@ import re
 import cchardet
 import os
 import argparse
+import platform
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-r", "--remove_original",
@@ -36,7 +37,7 @@ def parse(smi):
 
     def parse_p(item):
         pattern = re.compile(r'<p class=(\w+)>(.+)', flags=re.I | re.DOTALL)
-        parsed = {}
+        content = None
         for match in pattern.finditer(item):
             lang = match.group(1)
             content = match.group(2)
@@ -44,8 +45,14 @@ def parse(smi):
             content = content.replace('\n', '')
             content = re.sub('<br ?/?>', '\n', content, flags=re.I)
             content = re.sub('<[^>]+>', remove_tag, content)
-            parsed[lang] = content
-        return parsed
+        if content is None:
+            content = item
+            content = content.replace('\r', '')
+            content = content.replace('\n', '')
+            content = re.sub('<br ?/?>', '\n', content, flags=re.I)
+            content = re.sub('<[^>]+>', remove_tag, content)
+            
+        return content
 
     data = []
     try:
@@ -61,11 +68,11 @@ def parse(smi):
             datum['end'] = int(e.split('=')[1]) if e is not None else None
             datum['content'] = parse_p(c)
             data.append(datum)
-        return get_languages(), data
+        return data
     except:
         print('Conversion ERROR: maybe this file is not supported.')
 
-    return get_languages(), data
+    return data
 
 
 def convert(data, lang):  # written by ncianeo
@@ -84,7 +91,7 @@ def convert(data, lang):  # written by ncianeo
             if i > 0:
                 if data[i]['start'] < data[i-1]['start']:
                     continue
-            if data[i]['content'][lang] != '&nbsp;':
+            if data[i]['content'] != '&nbsp;':
                 srt += str(sub_nb)+'\n'
                 sub_nb += 1
                 if data[i]['end'] is not None:
@@ -97,8 +104,8 @@ def convert(data, lang):  # written by ncianeo
                     else:
                         srt += '%02d:%02d:%02d,%03d' % ms_to_ts(
                             data[i]['start'])+' --> '+'%02d:%02d:%02d,%03d\n' % ms_to_ts(int(data[i]['start'])+1000)
-                data[i]['content'][lang] = re.sub('&nbsp;','',data[i]['content'][lang])
-                srt += data[i]['content'][lang]+'\n\n'
+                data[i]['content'] = re.sub('&nbsp;','',data[i]['content'])
+                srt += data[i]['content']+'\n\n'
         except:
             continue
     return srt
@@ -111,21 +118,23 @@ print('finding and converting started...')
 for p, w, f in os.walk(PATH):
     for file_name in f:
         if file_name[-4:].lower() == '.smi':
+
             print('processing %s' % os.path.join(p, file_name))
             try:
                 with open(os.path.join(p, file_name), 'rb') as smi_file:
                     smi_raw = smi_file.read()
                     encoding = cchardet.detect(smi_raw)
+
+                #decode    
                 smi = smi_raw.decode(
                     encoding['encoding'], errors=DECODE_ERRORS)
-                langs, data = parse(smi)
-                for lang in langs:
-                    lang_code = lang.replace('CC', '')
-                    SUFFIX = '.'+(lang_code.lower() if len(
-                        lang_code) == 2 else lang_code[:2].lower() + '_' + lang_code[2:].upper())
-                    srt_file = codecs.open(os.path.join(p, os.path.splitext(
-                        file_name)[0]+SUFFIX+'.srt'), 'w', encoding='utf-8')
-                    srt_file.write(convert(data, lang))
+                #parse
+                data = parse(smi)
+                #srt make&open
+                srt_file = codecs.open(os.path.join(p, os.path.splitext(file_name)[0]+'.ko.srt'), 'w', encoding='utf-8')
+                #convert, write
+                srt_file.write(convert(data, 'KRCC'))
+
                 success.append(file_name)
                 if REMOVE_OPTION:
                     os.remove(os.path.join(p, file_name))
@@ -147,3 +156,8 @@ for smi in fail:
 
 if REMOVE_OPTION:
     print('\nworked smi files are removed due to removal option')
+
+
+if platform.system() == "Windows":
+    print('\n\nPlease Enter to Exit')
+    input()
