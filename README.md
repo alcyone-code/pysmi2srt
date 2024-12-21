@@ -8,7 +8,7 @@ smi 자막을 srt로 변환해주는 파이썬 스크립트 (plex 라이브러�
 
 
 ## 요구사항:
-- Python3 (3.6~)
+- Python3 (3.6~) [tested with 3.10.11 windows store version]
 - cchardet
 
 ## 설치:
